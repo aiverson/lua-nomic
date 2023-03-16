@@ -26,7 +26,10 @@
         };
         devShells = rec {
           nomic = pkgs.mkShell {
-            buildInputs = [ luvitpkgs.packages.${system}.lit ];
+            buildInputs = [
+              luvitpkgs.packages.${system}.lit
+              luvitpkgs.packages.${system}.luvit
+            ];
           };
           default = nomic;
         };
