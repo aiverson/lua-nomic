@@ -78,10 +78,42 @@ local proxy_mt = { -- metatable for proxies
     return uncall(proxy_origins[self])
   end,
 }
+local proxy_private_mt = { -- metatable for proxies that hide their state
+  __metatable = "proxy",
+  __index = function(self, k)
+    return translate(getmetatable(proxy_refs[self]).__index[k], proxy_origins[self], proxy_owners[self])
+  end,
+  __newindex = function(self, k, v)
+    error "tried to set a field on a protected object"
+  end,
+  __call = proxy_mt.__call,
+  __tostring = proxy_mt.__tostring,
+  __uncall = proxy_mt.__uncall,
+}
+local proxy_opaque_mt = { -- metatable for proxies that block access from external modules
+  __metatable = "proxy",
+  __index = function(self, k)
+    error "tried to get a field on a protected object"
+  end,
+  __newindex = function(self, k, v)
+    error "tried to set a field on a protected object"
+  end,
+  -- __call = function(self, ...) error "tried to call a protected object" end,
+  -- __tostring = proxy_mt.__tostring,
+  -- __uncall = proxy_mt.__uncall,
+}
 
 function proxy_get(object, module_src, module_dst) -- proxy an object from the source module to the dest, reusing a proxy if possible
   if module_dst.proxy_of[object] then return module_dst.proxy_of[object] end
-  local proxy = setmetatable({}, proxy_mt)
+  local omt = getmetatable(object)
+  local mt = proxy_mt
+  if omt.__proxy_private == true then
+    mt = proxy_private_mt
+  end
+  if omt.__proxy_opaque == true then
+    mt = proxy_opaque_mt
+  end
+  local proxy = setmetatable({}, mt)
   proxy_origins[proxy] = module_src
   proxy_owner[proxy] = module_dst
   proxy_ref[proxy] = object
