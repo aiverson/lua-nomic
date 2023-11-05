@@ -9,21 +9,118 @@ local S = schema.newschema("rpc", "the primary schema for rpc connections", "658
 local questionId = S:newtype("questionId", schema.u32)
 local exportId = S:newtype("exportId", schema.u32)
 
+S:struct "Ins" "A single instruction of the rpc calls"
+{
+  union "op" (0) "Which operation is being requested. These variants should have at most 16 bits of fields in order to fit them in tightly packed lists. These instructions form a stack based language used to patch and assemble calls for the RPC protocol. It shouldn't be turing complete, or even capable of superlinear behavior. It is needed to patch calls in order to pipeline primitives. If bytes in a message will be a target of an assignment they must be present, even if normalization rules would otherwise permit them to be elided."
+  {
+    variant "nop" (1) "Because every instruction format must have a nop" {};
+    variant "get1s" (2) "Retrieve a one bit data value from a struct. Expects the pointer to the struct to be on the top of the stack"
+    {
+      u16 "offset" (3);
+    };
+    variant "get8s" (4) "Retrieve an eight bit data value from a struct. Expects the pointer to the struct to be on the top of the stack"
+    {
+      u16 "offset" (5);
+    };
+    variant "get16s" (6) "Retrieve a sixteen bit data value from a struct. Expects the pointer to the struct to be on the top of the stack"
+    {
+      u16 "offset" (7);
+    };
+    variant "get32s" (8) "Retrieve a 32 bit data value from a struct. Expects the pointer to the struct to be on the top of the stack"
+    {
+      u16 "offset" (9);
+    };
+    variant "get64s" (10) "Retrieve a 64 bit data value from a struct. Expects the pointer to the struct to be on the top of the stack"
+    {
+      u16 "offset" (11);
+    };
+    variant "getps" (12) "Retrieve a pointer value from a struct. Expects the pointer to the struct to be on the top of the stack"
+    {
+      u16 "offset" (13);
+    };
+    variant "set1s" (14) "Assign a one bit data value into a struct. Expects the value to be assigned to be on the top of the stack with the pointer to the struct beneath it"
+    {
+      u16 "offset" (15);
+    };
+    variant "set8s" (16) "Assign an eight bit data value into a struct. Expects the value to be assigned to be on the top of the stack with the pointer to the struct beneath it"
+    {
+      u16 "offset" (17);
+    };
+    variant "set16s" (18) "Assign a sixteen bit data value into a struct. Expects the value to be assigned to be on the top of the stack with the pointer to the struct beneath it"
+    {
+      u16 "offset" (19);
+    };
+    variant "set32s" (20) "Assign a 32 bit data value into a struct. Expects the value to be assigned to be on the top of the stack with the pointer to the struct beneath it"
+    {
+      u16 "offset" (21);
+    };
+    variant "set64s" (22) "Assign a 64 bit data value into a struct. Expects the value to be assigned to be on the top of the stack with the pointer to the struct beneath it"
+    {
+      u16 "offset" (23);
+    };
+    variant "setps" (24) "Assign a pointer value into a struct. Expects the value to be assigned to be on the top of the stack with the pointer to the struct beneath it"
+    {
+      u16 "offset" (25);
+    };
+    variant "dup" (26) "duplicate a value onto the top of the stack"
+    {
+      u16 "offset" (41) "The offset from the top of the stack of the item to duplicate";
+    };
+    variant "drop" (27) "remove the value on the top of the stack" {};
+    variant "pushref" (28) "push a reference from the reference pool associated with this call onto the stack"
+    {
+      u16 "loc" (29);
+    };
+    variant "pushimm" (30) "push an immediate 16 bit value onto the stack"
+    {
+      u16 "val" (31);
+    };
+    variant "imm32" (32) "write an immediate 16 bit value into bits 17-32 of the top of the stack"
+    {
+      u16 "val" (33);
+    };
+    variant "imm48" (34) "write an immediate 16 bit value into bits 33-48 of the top of the stack"
+    {
+      u16 "val" (35);
+    };
+    variant "imm64" (36) "write an immediate 16 bit value into bits 49-64 of the top of the stack"
+    {
+      u16 "val" (37);
+    };
+    variant "bootstrap" (38) "push the bootstrap capability exposed by the host vat onto the stack, if any. Not all vats must expose a bootstrap capability." {};
+    variant "call" (39) "Call a method on a capability. The top of the stack should be the struct pointer of the arguments to send to the call, followed by the capability pointer on which the method is being called. The interface id and method id for the call are retrieved from the interface pool associated with the rpc call at the index provided with the instruction."
+    {
+      u16 "method" (40) "which method this call is calling on.";
+    };
+    variant "assertvariant" (42) "require that the top of the stack has a particular variant id, allowing implementing a simple guard clause that fails the call if the value isn't the expected variant."
+    {
+      u16 "variant" (43) "the variant it must match. To check the variant use get16s to retrieve the variant code then an assertvariant instruction to ensure the value."
+    }
+  };
+}
+
+S:struct "methodid" "The interface and method id that identify a specific method in an rpc session"
+{
+  u64 "interface" (0);
+  u16 "method" (1);
+}
 
 S:struct "question" "The actual data sent in a question describing what to do. This deliberately doesn't include the actual id of the question. The systems"
 {
   union "kind" (0) "What the system is asking to be done"
   {
-    variant "method" (1) "The question is calling a method on a specific interface on a known object"
+    variant "invoke" (1) "This question is a call of an interface method. The instructions may patch the "
     {
-      schema.anycap "receiver" (2) "the object to call a method on";
-      schema_schema.export.typeid "interface" (3) "what interface type to treat the object as";
-      schema.variantid "method" (4) "which method from the interface to call";
-      schema.anypointer "args" (5) "the arguments for the method, encoded as a struct";
+      list(S.export.Ins) "prog" (2) "The instructions composing this rpc call";
+      schema.anypointer "initial" (8) "The struct used for the initial value on the stack";
+      list(S.export.refdescriptor) "refpool" (3) "The references which this rpc call considers data dependencies";
+      list(S.export.methodid) "methods" (4) "The methods which this rpc call intends to invoke";
     };
-    variant "bootstrap" (6) "Try to retrieve an initial public capability from the vat if one exists" {};
-    variant "accept"
   };
+  list(S.export.refdescriptor) "causaldeps" (5) "The references which this question considers to be required to resolve before it.";
+  bool "dontreturn" (6) "Whether or not this question should have its answer sent over the wire to the originator. If a value will only be used for pipelined calls before being dropped, setting this flag will reduce network traffic";
+  bool "dontpipeline" (7) "If this flag is set, the answer will not be used for pipelining. This doesn't do much, because the value must be retained for retransmission in case of packet loss anyways, but maybe this provides an optimization.";
+
 }
 
 S:struct "exception" "A description of a failure"
