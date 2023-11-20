@@ -1,14 +1,19 @@
+return function(use_weaktables)
+
+  local proxy_origins, proxy_owners, proxy_refs, proxy_key
+  if use_weaktables then
+    local weak = {__mode = "k"}
+    proxy_origins, proxy_owners, proxy_refs = setmetatable({}, weak), setmetatable({}, weak), setmetatable({}, weak)
+  else
+    proxy_key = {}
+  end
 
 
-local proxy_origins = setmetatable({}, {__mode = 'k'}})
-local proxy_owners = setmetatable({}, {__mode = 'k'})
-local proxy_refs = setmetatable({}, {__mode = 'k'})
+  local error_kill_flag = {}
 
-local error_kill_flag = {}
+  local proxy_get
 
-local proxy_get
-
-local module_proxy_of_mt = {__mode = 'v'}
+  local module_proxy_of_mt = {__mode = 'v'}
 
 local root_module = {proxy_of = setmetatable({}, module_proxy_of_mt)}
 
@@ -115,8 +120,8 @@ function proxy_get(object, module_src, module_dst) -- proxy an object from the s
   end
   local proxy = setmetatable({}, mt)
   proxy_origins[proxy] = module_src
-  proxy_owner[proxy] = module_dst
-  proxy_ref[proxy] = object
+  proxy_owners[proxy] = module_dst
+  proxy_refs[proxy] = object
   module_dst.proxy_of[object] = proxy
   return proxy
 end
@@ -149,7 +154,7 @@ local function env_create(module)
     assert = assert,
     -- collectgarbage is forbidden to prevent messing with memory tracking
     -- dofile is forbidden because there is no default filesystem access
-    error = error -- this will probably need to be sandboxed in the future to allow errors with nonstring values
+    error = error, -- this will probably need to be sandboxed in the future to allow errors with nonstring values
     -- _G added later
     getmetatable = sandboxed_getmetatable,
     ipairs = ipairs,
@@ -220,4 +225,8 @@ local function module_create(code, source, ...)
   local env = env_create(module)
   local fn, err = env.load(code, source or '=(module_create)')
   return translate_args(module, root_module, fn, err)
+end
+
+return module_create
+
 end

@@ -79,7 +79,7 @@ function codec:initialize(setup)
         end
     end
 
-    assert((type(setup.writer) == "function", "must have a write function to write buffers to")
+    assert((type(setup.writer) == "function"), "must have a write function to write buffers to")
     self.writer = setup.writer
 
 
@@ -122,7 +122,7 @@ local writebuffer_mt = {
             return new_writeslot(self, self.n)
         end,
         tostring = function(self)
-            if self.outstanding_slots != 0 then
+            if self.outstanding_slots ~= 0 then
                 error "not all reserved slots have been resolved."
             end
             return table.concat(self, "")
@@ -135,9 +135,9 @@ local function new_writebuffer()
 end
 
 local flagcodes = {
-    nil = 0,
-    false = 1,
-    true = 2,
+    ["nil"] = 0,
+    ["false"] = 1,
+    ["true"] = 2,
     smallint = 4,
     int = 5,
     number = 6,
@@ -218,9 +218,9 @@ local function serialize_message(codec, val, buff)
     elseif type(val) == "function" then
         buff:append(string.pack("<!1 I1 I4", flagcodes.exported, codec:export(val)))
     elseif type(val) == "bool" then
-        buff:append(string.pack("<!1 I1", val and flagcodes.true or flagcodes.false))
+        buff:append(string.pack("<!1 I1", val and flagcodes["true"] or flagcodes["false"]))
     elseif val == nil then
-        buff:append(string.pack("<!1 I1", flagcodes.nil))
+        buff:append(string.pack("<!1 I1", flagcodes["nil"]))
     elseif type(val) == "userdata" then
         error "tried to send userdata. This isn't allowed. Wrap it in an opaque reference or an ocap providing the api"
     else
@@ -230,11 +230,11 @@ end
 
 local function deserialize_message(codec, buff, pos)
     local code, pos = string.unpack("<!1 I1", buff, pos)
-    if code == flagcodes.nil then
+    if code == flagcodes["nil"] then
         return nil, pos
-    elseif code == flagcodes.true then
+    elseif code == flagcodes["true"] then
         return true, pos
-    elseif code == flagcodes.false then
+    elseif code == flagcodes["false"] then
         return false, pos
     elseif code == flagcodes.smallint then
         return string.unpack("<!1 i1", buff, pos)
@@ -284,7 +284,7 @@ local function deserialize_message(codec, buff, pos)
         return codec.exports[idx].val
     elseif code == flagcodes.answer then
 
-
+    end
 
 end
 

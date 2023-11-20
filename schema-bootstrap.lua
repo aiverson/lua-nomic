@@ -1,7 +1,7 @@
 
 local schema = require 'schema'
 
-local text, union, enum, variant = schema.text, schema.union schema.enum, schema.variant
+local text, union, enum, variant = schema.text, schema.union, schema.enum, schema.variant
 local u16, u64, list = schema.u16, schema.u64, schema.list
 
 local S = schema.create("schema", "the schema for saving and transmitting schemas")
@@ -88,7 +88,7 @@ local smethod = S:struct "method" "The definition of a method of an interface"
 local interface = S:struct "interface" "A definition of an interface"
 {
   text "name" (0) "A friendly name for the interface";
-  list(smethod) "methods" (1) "all the methods of the interface, in evolution order"
+  list(smethod) "methods" (1) "all the methods of the interface, in evolution order";
   typeid "id" (2) "A unique id automatically derived from the schema in which this interface lives. The collision domain is the same as for structs";
 }
 
