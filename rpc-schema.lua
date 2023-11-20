@@ -163,7 +163,7 @@ payload = S:genericstruct "refwrapper" (function(descriptor, payload)
     return {
       list(descriptor) "references" (0) "The backing reference descriptions which cap-pointers in the payload refer to";
       payload "payload" (1) "the data which may contain cap-pointers that should be resolved by the references described here.";
-      })
+      } end)
 
 local call = S:struct "methodcall" "A description of the information required to perform a method call"
 {

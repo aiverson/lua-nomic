@@ -68,7 +68,7 @@ end
 local function build_attr(element, name, decl)
   if slot.is_slot(decl) then
     return make_attr_binding(element, name, decl)
-  elseif type(decl) == "string" or type(decl) == "number" or type(decl) = "boolean" then
+  elseif type(decl) == "string" or type(decl) == "number" or type(decl) == "boolean" then
     return make_attr_const(element, name, tostring(decl))
   else
     error "unsupported type in attribute"

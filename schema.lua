@@ -246,7 +246,7 @@ local deferred_field_mt = {
         self.order = val
       end
     elseif not self.docstring and type(val) == "string" then
-      self.docstring == val
+      self.docstring = val
     else
       error "unknown component of field declaration"
     end
@@ -286,7 +286,7 @@ local deferred_union_mt = {
         self.order = val
       end
     elseif not self.docstring and type(val) == "string" then
-      self.docstring == val
+      self.docstring = val
     elseif not self.children and type(val) == "table" then
       self.children = val
     else
@@ -328,7 +328,7 @@ local deferred_variant_mt = {
         self.order = val
       end
     elseif not self.docstring and type(val) == "string" then
-      self.docstring == val
+      self.docstring = val
     elseif not self.children and type(val) == "table" then
       self.children = val
     else
