@@ -31,7 +31,8 @@ return function(use_weaktables)
     end
   else
     function proxy_get_origin(obj)
-      return rawget(obj, proxy_key).origin
+      local info = rawget(obj, proxy_key)
+      return info and info.origin
     end
   end
 
@@ -42,7 +43,8 @@ return function(use_weaktables)
     end
   else
     function proxy_get_target(obj)
-      return rawget(obj, proxy_key).target
+      local info = rawget(obj, proxy_key)
+      return info and info.target
     end
   end
 
@@ -53,7 +55,8 @@ return function(use_weaktables)
     end
   else
     function proxy_get_owner(obj)
-      return rawget(obj, proxy_key).owner
+      local info = rawget(obj, proxy_key)
+      return info and info.owner
     end
   end
 
