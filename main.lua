@@ -19,9 +19,9 @@ app.websocket(
     },
     function(req, read, write)
         -- Log the request headers
-        p(req)
+        print(req)
 
-        p("closing websocket")
+        print("closing websocket")
 
         waitingSockets[write] = nil
         -- End the stream
