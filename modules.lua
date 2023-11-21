@@ -78,7 +78,7 @@ local function translate(obj, module_src, module_dst) -- translate values across
   elseif t == "function" then
     return proxy_get(obj, module_src, module_dst)
   else
-    error "NYI unsupported translation between modules, this needs to be expanded"
+    error("NYI unsupported translation between modules for " .. t .. ", this needs to be expanded")
   end
 end
 
@@ -136,6 +136,7 @@ local proxy_mt = { -- metatable for proxies
       )
   end,
   __tostring = function(self) return tostring(proxy_get_target(self)) end,
+  __eq = function(self, other) return rawequal(proxy_get_origin(self), proxy_get_origin(other)) and proxy_get_target(self) == proxy_get_target(other) end
   --[[__uncall = function(self)
     return uncall(proxy_origins[self])
   end,]]
@@ -152,6 +153,7 @@ local proxy_private_mt = { -- metatable for proxies that hide their state
   end,
   __call = proxy_mt.__call,
   __tostring = proxy_mt.__tostring,
+  __eq = proxy_mt.__eq,
   __uncall = proxy_mt.__uncall,
 }
 local proxy_opaque_mt = { -- metatable for proxies that block access from external modules
@@ -164,6 +166,7 @@ local proxy_opaque_mt = { -- metatable for proxies that block access from extern
   end,
   -- __call = function(self, ...) error "tried to call a protected object" end,
   -- __tostring = proxy_mt.__tostring,
+  __eq = proxy_mt.__eq
   -- __uncall = proxy_mt.__uncall,
 }
 
