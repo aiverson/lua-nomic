@@ -29,9 +29,9 @@ app.websocket(
     end
 )
 
-app.use(weblit.static "bundle:static/").use(weblit.static "static/")
-
 app.route({method = "GET", path = "/index.html"}, require './index')
+
+app.use(weblit.static "bundle:static/").use(weblit.static "static/")
 
 app.start()
 

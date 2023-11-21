@@ -62,7 +62,7 @@ return function(use_weaktables)
 
 local function translate(obj, module_src, module_dst) -- translate values across a module boundary to maintain sandboxing
   local t = type(obj)
-  if t == 'string' or t == 'number' or t == 'boolean' or t == 'nil' then
+  if t == 'string' or t == 'number' or t == 'boolean' or t == 'nil' or t == 'userdata' then
     return obj -- immutable primitives and string may be passed directly
   elseif t == "table" then
     local origin = proxy_get_origin(obj)
