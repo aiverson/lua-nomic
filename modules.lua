@@ -225,11 +225,13 @@ else
   function proxy_get(object, module_src, module_dst) -- proxy an object from the source module to the dest, but without weak tables it can't reuse proxies
     local omt = getmetatable(object)
     local mt = proxy_mt
-    if omt.__proxy_private == true then
-      mt = proxy_private_mt
-    end
-    if omt.__proxy_opaque == true then
-      mt = proxy_opaque_mt
+    if omt then
+      if omt.__proxy_private == true then
+        mt = proxy_private_mt
+      end
+      if omt.__proxy_opaque == true then
+        mt = proxy_opaque_mt
+      end
     end
     local proxy = setmetatable({[proxy_key] = {origin = module_src, owner = module_dst, target = object}}, mt)
     return proxy
