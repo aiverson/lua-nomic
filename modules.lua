@@ -101,6 +101,7 @@ local function cloneTab(tab)
   for k, v in pairs(tab) do
     clone[k] = v
   end
+  return clone
 end
 
 local function sandboxed_getmetatable(obj)
