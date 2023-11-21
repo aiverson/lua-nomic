@@ -4,7 +4,7 @@ local html = ...
 
 ---comment
 ---@param tag string
----@return fun(UIDesc): UINode
+---@return fun(desc: UIDesc): UINode
 local function b(tag)
     return function(desc)
         return html.new_node(tag, desc)
