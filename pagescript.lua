@@ -31,8 +31,11 @@ local counter = module_create(sources.clientmodules.counter, "clientmodules/coun
 print "testapp"
 ---@module "clientmodules.testapp"
 local testapp = module_create(sources.clientmodules.testapp, "clientmodules/testapp.lua"){elem = elem, counter = counter}
-print "done loading"
+print "done loading scripts"
+
+document:addEventListener('DOMContentLoaded', function()
 client_html.claim_root(document:getElementById("mainapp"), testapp)
 print "root claimed"
 
 print(pcall(client_html.notify))
+end)
