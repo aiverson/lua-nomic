@@ -13,26 +13,72 @@ return function(use_weaktables)
 
   local proxy_get
 
+  local root_module
+
   local module_proxy_of_mt = {__mode = 'v'}
 
-local root_module = {proxy_of = setmetatable({}, module_proxy_of_mt)}
+  if use_weaktables then
+    root_module = {proxy_of = setmetatable({}, module_proxy_of_mt)}
+  else
+    -- can't use proxy_of without weak references
+    root_module = {}
+  end
+
+  local proxy_get_origin
+  if use_weaktables then
+    function proxy_get_origin(obj)
+      return proxy_origins[obj]
+    end
+  else
+    function proxy_get_origin(obj)
+      local info = rawget(obj, proxy_key)
+      return info and info.origin
+    end
+  end
+
+  local proxy_get_target
+  if use_weaktables then
+    function proxy_get_target(obj)
+      return proxy_refs[obj]
+    end
+  else
+    function proxy_get_target(obj)
+      local info = rawget(obj, proxy_key)
+      return info and info.target
+    end
+  end
+
+  local proxy_get_owner
+  if use_weaktables then
+    function proxy_get_owner(obj)
+      return proxy_owners[obj]
+    end
+  else
+    function proxy_get_owner(obj)
+      local info = rawget(obj, proxy_key)
+      return info and info.owner
+    end
+  end
 
 local function translate(obj, module_src, module_dst) -- translate values across a module boundary to maintain sandboxing
-  if proxy_origins[obj] == module_dst then -- the object is a proxy for an object which lives in the destination module
-    return proxy_refs[obj] -- the original object living in the destination module should be used
-  elseif proxy_refs[obj] then -- the object is a proxy which doesn't live in the destination module
-    return proxy_get(proxy_refs[obj], module_src, module_dst) -- get a proxy specific to the destination module to prevent pollution if some module decided to use raw methods to mutate their local proxy
-  end
   local t = type(obj)
-  if t == 'string' or t == 'number' or t == 'boolean' or t == 'nil' then
+  if t == 'string' or t == 'number' or t == 'boolean' or t == 'nil' or t == 'userdata' then
     return obj -- immutable primitives and string may be passed directly
   elseif t == "table" then
+    local origin = proxy_get_origin(obj)
+    if origin then
+      if origin == module_dst then
+        return proxy_get_target(obj)
+      else
+        return proxy_get(proxy_get_target(obj), origin, module_dst)
+      end
+    end
     local mt = getmetatable(t)
     return proxy_get(obj, module_src, module_dst)
   elseif t == "function" then
     return proxy_get(obj, module_src, module_dst)
   else
-    error "NYI unsupported translation between modules, this needs to be expanded"
+    error("NYI unsupported translation between modules for " .. t .. ", this needs to be expanded")
   end
 end
 
@@ -55,6 +101,7 @@ local function cloneTab(tab)
   for k, v in pairs(tab) do
     clone[k] = v
   end
+  return clone
 end
 
 local function sandboxed_getmetatable(obj)
@@ -67,32 +114,46 @@ end
 
 local proxy_mt = { -- metatable for proxies
   __metatable = "proxy",
-  __index = function(self, k) return translate(proxy_refs[self][k], proxy_origins[self], proxy_owners[self]) end,
-  __newindex = function(self, k, v) proxy_refs[self][k] = translate(v, proxy_owners[self], proxy_origins[self]) end,
+  __index = function(self, k)
+    local origin = proxy_get_origin(self)
+    local owner = proxy_get_owner(self)
+    return translate(proxy_get_target(self)[translate(k, owner, origin)], origin, owner)
+  end,
+  __newindex = function(self, k, v)
+    local origin = proxy_get_origin(self)
+    local owner = proxy_get_owner(self)
+    proxy_get_target(self)[translate(k, owner, origin)] = translate(v, owner, origin)
+  end,
   __call = function(self, ...)
+    local origin = proxy_get_origin(self)
+    local owner = proxy_get_owner(self)
     return
       translate(
-        proxy_refs[self](
-          translate_args(proxy_owners[self], proxy_origins[self], ...)
+        proxy_get_target(self)(
+          translate_args(owner, origin, ...)
                         ),
-        proxy_origins[self], proxy_owners[self]
+        origin, owner
       )
   end,
-  __tostring = function(self) return tostring(proxy_refs[self]) end,
-  __uncall = function(self)
+  __tostring = function(self) return tostring(proxy_get_target(self)) end,
+  __eq = function(self, other) return rawequal(proxy_get_origin(self), proxy_get_origin(other)) and proxy_get_target(self) == proxy_get_target(other) end
+  --[[__uncall = function(self)
     return uncall(proxy_origins[self])
-  end,
+  end,]]
 }
 local proxy_private_mt = { -- metatable for proxies that hide their state
   __metatable = "proxy",
   __index = function(self, k)
-    return translate(getmetatable(proxy_refs[self]).__index[k], proxy_origins[self], proxy_owners[self])
+    local origin = proxy_get_origin(self)
+    local owner = proxy_get_owner(self)
+    return translate(getmetatable(proxy_get_target(self)).__index[translate(k, owner, origin)], origin, owner)
   end,
   __newindex = function(self, k, v)
     error "tried to set a field on a protected object"
   end,
   __call = proxy_mt.__call,
   __tostring = proxy_mt.__tostring,
+  __eq = proxy_mt.__eq,
   __uncall = proxy_mt.__uncall,
 }
 local proxy_opaque_mt = { -- metatable for proxies that block access from external modules
@@ -105,18 +166,60 @@ local proxy_opaque_mt = { -- metatable for proxies that block access from extern
   end,
   -- __call = function(self, ...) error "tried to call a protected object" end,
   -- __tostring = proxy_mt.__tostring,
+  __eq = proxy_mt.__eq
   -- __uncall = proxy_mt.__uncall,
 }
 
+local sandboxed_pairs
+local sandboxed_next
+if use_weaktables then
+  sandboxed_next = next
+else
+  function sandboxed_next(tab, k)
+    local newk, v = next(tab, k)
+    if rawequal(newk, proxy_key) then
+      return next(tab, newk)
+    else
+      return newk, v
+    end
+  end
+end
+
+do
+  local _, tab, _ = pairs(setmetatable({custom = false}, {__pairs = function(_) return next, {custom = true}, nil end}))
+  if tab.custom then
+    if not use_weaktables then
+      local function __pairs(self)
+        return sandboxed_next, self, nil
+      end
+      proxy_mt.__pairs = __pairs
+      proxy_private_mt.__pairs = __pairs
+      proxy_opaque_mt.__pairs = __pairs
+    end
+    sandboxed_pairs = pairs
+  else
+    if use_weaktables then
+      sandboxed_pairs = pairs
+    else
+      function sandboxed_pairs(obj)
+        return sandboxed_next, obj, nil
+      end
+    end
+  end
+end
+
+if use_weaktables then
 function proxy_get(object, module_src, module_dst) -- proxy an object from the source module to the dest, reusing a proxy if possible
   if module_dst.proxy_of[object] then return module_dst.proxy_of[object] end
   local omt = getmetatable(object)
   local mt = proxy_mt
-  if omt.__proxy_private == true then
-    mt = proxy_private_mt
-  end
-  if omt.__proxy_opaque == true then
-    mt = proxy_opaque_mt
+  if omt then
+    if omt.__proxy_private == true then
+      mt = proxy_private_mt
+    end
+    if omt.__proxy_opaque == true then
+      mt = proxy_opaque_mt
+    end
   end
   local proxy = setmetatable({}, mt)
   proxy_origins[proxy] = module_src
@@ -125,7 +228,22 @@ function proxy_get(object, module_src, module_dst) -- proxy an object from the s
   module_dst.proxy_of[object] = proxy
   return proxy
 end
-
+else
+  function proxy_get(object, module_src, module_dst) -- proxy an object from the source module to the dest, but without weak tables it can't reuse proxies
+    local omt = getmetatable(object)
+    local mt = proxy_mt
+    if omt then
+      if omt.__proxy_private == true then
+        mt = proxy_private_mt
+      end
+      if omt.__proxy_opaque == true then
+        mt = proxy_opaque_mt
+      end
+    end
+    local proxy = setmetatable({[proxy_key] = {origin = module_src, owner = module_dst, target = object}}, mt)
+    return proxy
+  end
+end
 
 local function pcall_handler(ok, err, ...) -- Automatically propagate kill codes through error handling to prevent using any protected mode to avoid a kill signal.
     if not ok and rawequal(err, error_kill_flag) then
@@ -150,7 +268,8 @@ local sandboxed_xpcall = function(func, msgh, ...)
 end
 
 local function env_create(module)
-  local env = {
+  local env
+  env = {
     assert = assert,
     -- collectgarbage is forbidden to prevent messing with memory tracking
     -- dofile is forbidden because there is no default filesystem access
@@ -165,8 +284,8 @@ local function env_create(module)
       return load(ld, source, mode, subenv)
     end,
     -- loadfile is forbidden because there is no default filesystem access
-    next = next,
-    pairs = pairs,
+    next = sandboxed_next,
+    pairs = sandboxed_pairs,
     pcall = sandboxed_pcall,
     -- print needs to be implemented with some kind of logging system to make the module output available rather than just dumping to stdout
     rawequal = rawequal,
@@ -183,6 +302,8 @@ local function env_create(module)
 
     coroutine = {
       create = coroutine.create,
+      -- polyglot, so include this even if it's on the wrong version since it will just be empty
+      ---@diagnostic disable-next-line:deprecated
       isyieldable = coroutine.isyieldable,
       resume = function(co, ...)
         return translate_args(root_module, module, coroutine.resume(co, translate_args(module, root_module, ...)))
@@ -195,7 +316,7 @@ local function env_create(module)
         end
         local co = coroutine.create(wrapped_f)
         return function(...)
-          return translate_args(root_module, module, coroutine.resume(translate_args(module, root_module, ...)))
+          return translate_args(root_module, module, coroutine.resume(translate_args(module, root_module, ...)--[[@as thread]] ))
         end
       end,
       yield = function(...)
@@ -207,6 +328,7 @@ local function env_create(module)
     -- package configuration table is forbidden because it of filesystem and mutable global state
 
     string = cloneTab(string), -- string library is safe
+    ---@diagnostic disable-next-line:undefined-global
     utf8 = cloneTab(utf8), -- if utf8 lib is available, it is fine
     table = cloneTab(table),
     bit = cloneTab(bit),
@@ -219,7 +341,12 @@ local function env_create(module)
   return env
 end
 
-
+---Create a new module from specified source
+---@param code string
+---@param source string
+---@param ... unknown
+---@return function|nil module the loaded module
+---@return nil|string err the resulting error
 local function module_create(code, source, ...)
   local module = {proxy_of = setmetatable({}, module_proxy_of_mt)}
   local env = env_create(module)

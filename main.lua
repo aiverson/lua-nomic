@@ -19,9 +19,9 @@ app.websocket(
     },
     function(req, read, write)
         -- Log the request headers
-        p(req)
+        print(req)
 
-        p("closing websocket")
+        print("closing websocket")
 
         waitingSockets[write] = nil
         -- End the stream
@@ -29,9 +29,9 @@ app.websocket(
     end
 )
 
-app.use(weblit.static "bundle:static/").use(weblit.static "static/")
-
 app.route({method = "GET", path = "/index.html"}, require './index')
+
+app.use(weblit.static "bundle:static/").use(weblit.static "static/")
 
 app.start()
 
