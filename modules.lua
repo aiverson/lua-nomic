@@ -124,6 +124,69 @@ local proxy_mt = { -- metatable for proxies
     local owner = proxy_get_owner(self)
     proxy_get_target(self)[translate(k, owner, origin)] = translate(v, owner, origin)
   end,
+  __add = function(self, other)
+    local origin = proxy_get_origin(self)
+    local owner = proxy_get_owner(self)
+    return
+      translate(
+        proxy_get_target(self) + translate(other, owner, origin),
+        origin, owner
+      )
+  end,
+  __sub = function(self, other)
+    local origin = proxy_get_origin(self)
+    local owner = proxy_get_owner(self)
+    return
+      translate(
+        proxy_get_target(self) - translate(other, owner, origin),
+        origin, owner
+      )
+  end,
+  __mul = function(self, other)
+    local origin = proxy_get_origin(self)
+    local owner = proxy_get_owner(self)
+    return
+      translate(
+        proxy_get_target(self) * translate(other, owner, origin),
+        origin, owner
+      )
+  end,
+  __div = function(self, other)
+    local origin = proxy_get_origin(self)
+    local owner = proxy_get_owner(self)
+    return
+      translate(
+        proxy_get_target(self) / translate(other, owner, origin),
+        origin, owner
+      )
+  end,
+  __mod = function(self, other)
+    local origin = proxy_get_origin(self)
+    local owner = proxy_get_owner(self)
+    return
+      translate(
+        proxy_get_target(self) % translate(other, owner, origin),
+        origin, owner
+      )
+  end,
+  __pow = function(self, other)
+    local origin = proxy_get_origin(self)
+    local owner = proxy_get_owner(self)
+    return
+      translate(
+        proxy_get_target(self) ^ translate(other, owner, origin),
+        origin, owner
+      )
+  end,
+  __unm = function(self)
+    local origin = proxy_get_origin(self)
+    local owner = proxy_get_owner(self)
+    return
+      translate(
+        -proxy_get_target(self),
+        origin, owner
+      )
+  end,
   __call = function(self, ...)
     local origin = proxy_get_origin(self)
     local owner = proxy_get_owner(self)
@@ -151,6 +214,13 @@ local proxy_private_mt = { -- metatable for proxies that hide their state
   __newindex = function(self, k, v)
     error "tried to set a field on a protected object"
   end,
+  __add = proxy_mt.__add,
+  __sub = proxy_mt.__sub,
+  __mul = proxy_mt.__mul,
+  __div = proxy_mt.__div,
+  __mod = proxy_mt.__mod,
+  __pow = proxy_mt.__pow,
+  __unm = proxy_mt.__unm,
   __call = proxy_mt.__call,
   __tostring = proxy_mt.__tostring,
   __eq = proxy_mt.__eq,

@@ -2,10 +2,18 @@
 
 ---@class DomNode
 ---@field lastElementChild DomNode
+---@field classList DomTokenList
 local DomNode = {}
 
+---@class DomTokenList
+local DomTokenList = {}
+
 ---@class Document
+---@field adoptedStyleSheets CSSStyleSheet[]
 local Document = {}
+
+---@class CSSStyleSheet
+local CSSStyleSheet = {}
 
 ---get a dom element by its id
 ---@param id string
@@ -16,6 +24,12 @@ function Document:getElementById(id) end
 ---@param tag string
 ---@return DomNode node
 function Document:createElement(tag) end
+
+---create a new element with the specified tag & namespace
+---@param namespace string
+---@param tag string
+---@return DomNode node
+function Document:createElementNS(namespace, tag) end
 
 ---Create a new text node
 ---@param text string
@@ -49,6 +63,18 @@ function DomNode:removeAttribute(name) end
 ---replace a node in its parents with a sequence of nodes
 ---@param ... DomNode
 function DomNode:replaceWith(...) end
+
+---add a entry to a token list
+---@param token string
+function DomTokenList:add(token) end
+
+---remove a entry from a token list
+---@param token string
+function DomTokenList:remove(token) end
+
+---insert a rule into a stylesheet
+---@param rule string
+function CSSStyleSheet:insertRule(rule) end
 
 ---@class DomTextNode: DomNode
 ---@field data string

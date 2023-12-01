@@ -3,19 +3,20 @@ local bundle = require 'luvi'.bundle
 local fs = require 'coro-fs'
 local json = require 'json'
 
-local pagescript = fs.readFile('pagescript.lua')
-
-local sources = {
-  client_html = fs.readFile("client-html.lua"),
-  client_elements = fs.readFile("client-elements.lua"),
-  modules = fs.readFile("modules.lua"),
-  clientmodules = {
-    testapp = fs.readFile("clientmodules/testapp.lua"),
-    counter = fs.readFile("clientmodules/counter.lua")
-  }
-}
-
 return function(req, res, go)
+  local pagescript = fs.readFile('pagescript.lua')
+
+  local sources = {
+    client_dom = fs.readFile("client-dom.lua"),
+    client_html = fs.readFile("client-html.lua"),
+    client_svg = fs.readFile("client-svg.lua"),
+    modules = fs.readFile("modules.lua"),
+    clientmodules = {
+      testapp = fs.readFile("clientmodules/testapp.lua"),
+      counter = fs.readFile("clientmodules/counter.lua")
+    }
+  }
+
   table.insert(res.headers, {"Content-Type", "text/html"})
   res.body = html.render(
     html.html {

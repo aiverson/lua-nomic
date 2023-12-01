@@ -7,7 +7,7 @@ local dom = ...
 ---@return fun(desc: UIDesc): UINode
 local function b(tag)
     return function(desc)
-        return dom.new_node(tag, desc)
+        return dom.new_node(tag, desc, "http://www.w3.org/2000/svg")
     end
 end
 
@@ -27,23 +27,17 @@ local function handler(name)
     end
 end
 
----@param name string
----@return fun(value: string): UIStyle
-local function style(name)
-    return function(value)
-        return dom.new_simple_style(name, value)
-    end
-end
-
 local elems = {
-    p = b"p",
-    span = b"span",
-    div = b"div",
-    button = b"button",
+    svg = b"svg",
+    a = b"a",
+    path = b"path",
 }
 
 local attrs = {
-    contentEditable = attr"contenteditable",
+    d = attr"d",
+    width = attr"width",
+    height = attr"height",
+    viewBox = attr"viewBox",
 }
 
 local handlers = {
@@ -51,14 +45,8 @@ local handlers = {
     onClick = handler"click",
 }
 
-local styles = {
-    bgColor = style"background-color",
-    verticalAlign = style"vertical-align",
-}
-
 return {
     elems = elems,
     attrs = attrs,
     handlers = handlers,
-    styles = styles,
 }
